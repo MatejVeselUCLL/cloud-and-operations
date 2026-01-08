@@ -1,0 +1,97 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  namespace: monitoring
+  # annotations:
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: traefik # Specifies which ingress to use.
+  rules:
+  - host: website.69.cloudops.ucll.cloud # When a packet comes to this address, forward it to my-service.
+  - http:
+      paths:
+      # - path: /testpath
+      - path: /
+        pathType: Prefix
+        backend:
+          service: # The service to which the traffic should be forwarded.
+            name: my-service
+            port:
+              number: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  namespace: monitoring
+spec:
+  # type: CluserIP # CluserIP is the default type, but it does not expose it to the outside. An alternative is a NodePort. If a pod wants to talk to another pod it will go to the service.
+  # tpye: LoadBalancer # It only works on cloud environment. It will forward to a public IP.
+  type: NodePort # Opens one random port on our public IP. 
+  selector: 
+    app: nginx # Refers to the label of the pod.
+  ports: # Port forwarding rules.
+    - protocol: TCP
+      # Anything coming to port 80 will be forwared to port 80 of the pod.
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: monitoring
+  labels:
+    app: nginx
+spec:
+  replicas: 9
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi" # For this pod, 64Mi should always me reserved.
+            cpu: "250m" # A quarter of a CPU.
+          limits: # What should be used at most. Too much load means the pod will be killed.
+            memory: "128Mi"
+            cpu: "500m"
+        env: 
+        - name: PASSWORD
+          value: "password123"
+          # valueFrom:
+          #   secretKeyRef:
+          #     name: mysecret
+          #     key: password
+        volumeMounts:
+        - mountPath: "/mnt/data" # Anything on this path should be persistence across different pods.
+          name: nginx-persistence-storage
+      volumes:
+      - name: nginx-persistence-storage
+        persistentVolumeClaim:
+          claimName: nginx
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx
+  namespace: monitoring
+  labels:
+    app: nginx
+spec:
+  storageClassName: local-path # Where are you getting data from. Azure, minia, local storage
+  accessModes:
+  - ReadWriteOnce # You could make it readMany to make it accessble to multiple pods.
+  resources:
+    requests:
+      storage: 2Gi # Amount of storage.

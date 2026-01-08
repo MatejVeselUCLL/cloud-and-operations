@@ -1,0 +1,50 @@
+---
+# WP SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress-v2
+  namespace: gateway-api-assignment
+spec:
+  selector:
+    app: wordpress-v2
+  type: ClusterIP
+  ports:
+  - name: wordpress-v2
+    protocol: TCP
+    port: 80
+    targetPort: 80
+---
+# WP DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  wordpress-v2
+  namespace: gateway-api-assignment # For each application, create a different namespace. Look at it as a folder.
+  labels:
+    app:  wordpress-v2
+spec:
+  selector:
+    matchLabels:
+      app: wordpress-v2
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app:  wordpress-v2
+    spec:
+      containers:
+      - name:  wordpress-v2
+        image:  wordpress:latest
+        ports:
+        - containerPort:  80
+          name:  wordpress-v2
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: mysql-v2 # This should be same as the database service name.
+        - name: WORDPRESS_DB_USER
+          value: wordpress
+        - name: WORDPRESS_DB_PASSWORD
+          value: wordpress
+        - name: WORDPRESS_DB_NAME
+          value: wordpress

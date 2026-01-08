@@ -1,0 +1,33 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: fastapi-app-scaledobject
+  namespace: monitoring
+spec:
+  scaleTargetRef:
+    name: fastapi-app
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  pollingInterval: 10 # Check metrics every 10 seconds.
+  cooldownPeriod: 10 # Deactive scaler 10 seconds after the trigger is false.
+  triggers:
+     # From 6:00 till 20:00, keep at least {desiredReplicas} replicas.
+     - type: cron
+       metadata:
+         timezone: Europe/Paris
+         start: 0 6 * * *
+         end: 0 20 * * *
+         desiredReplicas: "2" # If the cron is active, it will keep at least 2 replicas, otherwise it will look into the deployment and choose the number from there.
+    # When fast-api on path / gets more than 3 requests per 5 minutes, scale it.
+     - type: prometheus
+       metadata:
+         # Required fields:
+         serverAddress: http://prometheus-kube-prometheus-prometheus.monitoring:9090/
+         namespace: monitoring
+         query: sum(rate(http_request_total{service="fastapi-app", path="/"}[2m])) # Note: query must return a vector/scalar single element response
+         threshold: '0.025' # requests per second. 3 requests per 2 minutes is 3/(2x60) = 0.025
+     # Make sure (number of nginx pods)/(number of fast-api pods) equals 3.
+     - type: kubernetes-workload
+       metadata:
+         podSelector: 'app=nginx'
+         value: '3'

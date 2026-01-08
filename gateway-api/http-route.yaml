@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: 
+  name: wordpress
+  namespace: gateway-api-assignment
+  
+spec:
+  parentRefs:
+  - name: traefik-gateway
+    # sectionName: http
+    # kind: Gateway
+    namespace: traefik
+  hostnames:
+  - wordpress.69.cloudops.ucll.cloud
+  rules:
+  - backendRefs:
+    - name: wordpress-v1
+      namespace: gateway-api-assignment
+      port: 80
+      weight: 50
+    - name: wordpress-v2
+      port: 80
+      weight: 50

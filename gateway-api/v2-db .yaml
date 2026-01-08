@@ -1,0 +1,73 @@
+---
+# DB SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-v2
+  namespace: gateway-api-assignment
+spec:
+  selector:
+    app: mysql-v2 # Corresponds to the label in db-deployment.yaml-v2
+  type: ClusterIP
+  ports:
+  - name: mysql-v2
+    protocol: TCP
+    port: 3306
+    targetPort: 3306
+---
+# DB PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-v2
+  namespace: gateway-api-assignment
+  labels:
+    app: mysql-v2
+spec:
+  storageClassName: local-path # You can find it using kubectl get storageclass.
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi # Request 1GB of strage from the storageclass.
+---
+# DB DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  mysql-v2
+  namespace: gateway-api-assignment # Same application stack as wordpress.
+  labels:
+    app:  mysql-v2
+spec:
+  selector:
+    matchLabels:
+      app: mysql-v2
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app:  mysql-v2
+    spec:
+      containers:
+      - name:  mysql-v2
+        image:  mysql:5.7
+        ports:
+        - containerPort:  3306
+          name:  mysql-v2
+        env: # The environment variables should match to the ones of the wordpress pod.
+        - name: MYSQL_ROOT_PASSWORD
+          value: t
+        - name: MYSQL_DATABASE
+          value: wordpress
+        - name: MYSQL_USER
+          value: wordpress
+        - name: MYSQL_PASSWORD
+          value: wordpress
+        volumeMounts:
+        - name: mysql-v2-persistent-storage # Mount the volume form below to the current pod.
+          mountPath: /var/lib/mysql
+      volumes: # Links PVC and PV.
+      - name: mysql-v2-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-v2 # Corresponds to the name in pvc.yaml
